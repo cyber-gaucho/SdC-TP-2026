@@ -1,0 +1,9 @@
+# binarios generales
+*.out
+*.exe
+
+# archivos temporales
+*.log
+*.tmp
+
+# sistema

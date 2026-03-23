@@ -1,0 +1,12 @@
+# ejecutables
+bin/
+
+# archivos de profiling
+gmon.out
+perf.data
+
+# gráficos temporales
+*.dot
+
+# outputs intermedios
+analysis.txt
