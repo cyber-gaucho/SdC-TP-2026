@@ -7,3 +7,6 @@
 *.tmp
 
 # sistema
+.vscode/
+.idea/
+.DS_Store

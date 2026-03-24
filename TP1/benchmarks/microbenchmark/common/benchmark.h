@@ -1,11 +1,16 @@
+// common/benchmark.h
+
+#ifndef BENCHMARK_H
+#define BENCHMARK_H
+
 #include <stdint.h>
 
 #define ITERATIONS 200000000
 
-volatile uint32_t int_result = 0;
-volatile float float_result = 0.0f;
+volatile uint32_t int_result;
+volatile float float_result;
 
-void test_integers() {
+static inline void test_integers() {
     uint32_t acc = 0;
     for (uint32_t i = 0; i < ITERATIONS; i++) {
         acc += i;
@@ -14,7 +19,7 @@ void test_integers() {
     int_result = acc;
 }
 
-void test_floats() {
+static inline void test_floats() {
     float acc = 0.0f;
     for (uint32_t i = 0; i < ITERATIONS; i++) {
         acc += (float)i * 0.000001f;
@@ -22,3 +27,5 @@ void test_floats() {
     }
     float_result = acc;
 }
+
+#endif
