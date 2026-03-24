@@ -3,3 +3,5 @@ esp32s3,xtensa,80,int,0
 esp32s3,xtensa,80,float,0
 esp32s3,xtensa,160,int,0
 esp32s3,xtensa,160,float,0
+esp32s3,xtensa,240,int,0
+esp32s3,xtensa,240,float,0
