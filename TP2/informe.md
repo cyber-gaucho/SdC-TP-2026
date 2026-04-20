@@ -58,6 +58,14 @@ Python → C → ASM → Resultado
 
 ## Descripción
 
+En esta primera iteración se implementó la lógica de procesamiento completamente en C, con el objetivo de validar el comportamiento esperado antes de migrar a ensamblador.
+
+La función `procesar` recibe un valor `float` (el índice GINI), realiza un **truncamiento a entero** y le suma 1 al resultado. La capa Python se encarga de obtener los datos desde la API del Banco Mundial y delegar el procesamiento a la librería compartida `.so` compilada desde C.
+
+El flujo completo es:
+
+API (World Bank) → Python → ctypes → libprocesar.so (C) → resultado int
+
 - Recepción de datos
 - Conversión de float a entero
 - Incremento del valor en 1
