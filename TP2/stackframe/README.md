@@ -88,6 +88,62 @@ codigo/
 
 build/                ← archivos generados (no versionados)
 ```
+---
+
+## 3.1 Flujo de ejecución
+
+El sistema completo sigue el siguiente flujo:
+
+```text
+Python → ctypes → wrapper en C → rutina en ASM
+```
+
+Detalle:
+
+- Python obtiene los datos desde la API (GINI)
+- `ctypes` carga la librería compartida (`.so`)
+- Se invoca una función del wrapper en C
+- El wrapper llama a la rutina en ensamblador
+- El resultado vuelve a Python
+
+---
+
+## 3.2 Interfaz entre componentes
+
+### ASM
+
+La rutina en ensamblador:
+
+```c
+int procesar(float x);
+```
+
+Convención:
+- argumento en %xmm0
+- retorno en %eax
+
+### Wrapper en C
+
+El wrapper adapta la función ASM para Python:
+
+```c
+int procesar_wrapper(float x);
+```
+
+Responsabilidades:
+
+- recibir `float` desde Python
+- llamar a la función ASM
+- devolver `int`
+
+### Python (ctypes)
+
+Se define la firma:
+
+```python
+lib.procesar_wrapper.argtypes = [ctypes.c_float]
+lib.procesar_wrapper.restype = ctypes.c_int
+```
 
 ---
 

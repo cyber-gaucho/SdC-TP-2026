@@ -19,11 +19,13 @@ MAIN_C = $(SRC_DIR)/main.c
 MAIN_ASM_C = $(SRC_DIR)/main_asm.c
 PROC_C = $(SRC_DIR)/procesar.c
 PROC_ASM = $(SRC_DIR)/procesar.s
+WRAPPER_C = $(SRC_DIR)/procesar_wrapper.c
 
 MAIN_O = $(BUILD_DIR)/main.o
 MAIN_ASM_O = $(BUILD_DIR)/main_asm.o
 PROC_O = $(BUILD_DIR)/procesar.o
 PROC_ASM_O = $(BUILD_DIR)/procesar_asm.o
+WRAPPER_O = $(BUILD_DIR)/wrapper.o
 
 LIB = $(BUILD_DIR)/libprocesar.so
 BIN = $(BUILD_DIR)/programa
@@ -31,6 +33,8 @@ BIN_ASM = $(BUILD_DIR)/programa_asm
 
 PY_API = $(SRC_DIR)/gini_api.py
 PY_CTYPES = $(SRC_DIR)/gini_ctypes.py
+
+.PHONY: all c asm lib run-c run-asm run-py run-api clean help debug-c debug-asm
 
 # =========================
 # Targets principales
@@ -79,13 +83,16 @@ run-asm: asm
 	./$(BIN_ASM)
 
 # -------------------------
-# Librería para ctypes
+# Librería para ctypes (C wrapper + ASM)
 # -------------------------
 
 lib: $(LIB)
 
-$(LIB): $(PROC_O)
-	$(CC) -shared -o $(LIB) $(PROC_O)
+$(WRAPPER_O): $(WRAPPER_C) | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(PICFLAGS) -c $(WRAPPER_C) -o $(WRAPPER_O)
+
+$(LIB): $(PROC_ASM_O) $(WRAPPER_O)
+	$(CC) -shared -o $(LIB) $(PROC_ASM_O) $(WRAPPER_O)
 
 run-py: lib
 	python $(PY_CTYPES)
@@ -118,10 +125,10 @@ help:
 	@echo "Targets disponibles:"
 	@echo "  make c        -> Compila versión en C"
 	@echo "  make asm      -> Compila versión ASM"
-	@echo "  make lib      -> Genera libprocesar.so"
+	@echo "  make lib      -> Genera libprocesar.so (C wrapper + ASM)"
 	@echo "  make run-c    -> Ejecuta programa en C"
 	@echo "  make run-asm  -> Ejecuta programa ASM"
-	@echo "  make run-py   -> Ejecuta Python + ctypes"
+	@echo "  make run-py   -> Ejecuta Python → C → ASM"
 	@echo "  make run-api  -> Ejecuta solo consulta API"
 	@echo "  make debug-c  -> Debug C con GDB"
 	@echo "  make debug-asm-> Debug ASM con GDB"

@@ -4,13 +4,13 @@ import ctypes
 # cargar librería compartida
 lib = ctypes.CDLL("./build/libprocesar.so")
 
-# definir tipos
-lib.procesar.argtypes = [ctypes.c_float]
-lib.procesar.restype = ctypes.c_int
+# definir tipos (wrapper C)
+lib.procesar_wrapper.argtypes = [ctypes.c_float]
+lib.procesar_wrapper.restype = ctypes.c_int
 
 # Wrapper para llamar a la función de C
 def procesar(x):
-    return lib.procesar(x)
+    return lib.procesar_wrapper(x)
 
 def main():
     datos = obtener_gini_argentina()
