@@ -1,6 +1,6 @@
 # Stackframe - Guía de compilación y ejecución
 
-Según lo indicado en el documento [TP calculadora de inidces GINI](https://docs.google.com/document/d/1iR36JSzibt84sx7Pg65Ty6jhb3hQ4PmNnv7oCygqSwY/edit?tab=t.0#heading=h.l9frjjl9vc9b)
+Según lo indicado en el documento [TP calculadora de indices GINI](https://docs.google.com/document/d/1iR36JSzibt84sx7Pg65Ty6jhb3hQ4PmNnv7oCygqSwY/edit?tab=t.0#heading=h.l9frjjl9vc9b)
 
 ---
 
@@ -60,8 +60,8 @@ pip install requests
 ### Ejecutar scripts
 
 ```bash
-python gini_api.py
-python gini_ctypes.py
+python codigo/gini_api.py
+python codigo/gini_ctypes.py
 ```
 
 ### Salir del entorno
@@ -74,15 +74,19 @@ deactivate
 
 ---
 
-# 3. Estructura esperada
+# 3. Estructura del proyecto
 
 ```
 codigo/
   main.c
-  procesar.c      ← implementación en C (iteración 1)
-  procesar.asm    ← implementación en ASM (iteración 2)
-  gini_api.py     ← consulta a la API
-  gini_ctypes.py  ← integración Python - C
+  main_asm.c
+  procesar.c          ← implementación en C (iteración 1)
+  procesar.s          ← implementación en ASM (iteración 2)
+  procesar_wrapper.c  ← wrapper C → ASM
+  gini_api.py
+  gini_ctypes.py
+
+build/                ← archivos generados (no versionados)
 ```
 
 ---
@@ -92,7 +96,13 @@ codigo/
 ## Iteración 1 (solo C)
 
 ```bash
-gcc codigo/main.c codigo/procesar.c -o programa
+gcc codigo/main.c codigo/procesar.c -o build/programa
+```
+
+Ejecutar:
+
+```bash
+./build/programa
 ```
 
 ---
@@ -100,44 +110,72 @@ gcc codigo/main.c codigo/procesar.c -o programa
 ## Iteración 2 (C + ASM)
 
 ```bash
-gcc -c codigo/procesar.asm -o procesar.o
-gcc -c codigo/main.c -o main.o
-gcc main.o procesar.o -o programa
+as --64 -g -o build/procesar.o codigo/procesar.s
+gcc -g -O0 -c codigo/main_asm.c -o build/main_asm.o
+gcc build/main_asm.o build/procesar.o -o build/programa_asm
 ```
 
-> Nota: según la sintaxis usada, el archivo ASM puede necesitar extensión `.s` en lugar de `.asm`.
-
----
-
-# 5. Compilación como librería compartida (para Python)
-
-Para usar la función de C desde Python con `ctypes`, se debe compilar como librería dinámica.
-
-### Paso 1: generar objeto
-```bash
-gcc -c procesar.c -o procesar.o
-```
-
-### Paso 2: generar librería
-```bash
-gcc -shared -W -o libprocesar.so procesar.o
-```
-
-Esto genera `libprocesar.so`
-
----
-
-# 6. Ejecución con Python + C
-
-Asegurarse de que `libprocesar.so` esté en el mismo directorio que el script o indicar la ruta correcta.
+Ejecutar:
 
 ```bash
-python gini_ctypes.py
+./build/programa_asm
 ```
 
 ---
 
-# 7. Notas importantes
-- No se versionan archivos compilados (.o, .so)
-- La librería debe generarse en cada entorno
-- Si no existe `libprocesar.so`, la ejecución en Python fallará
+# 5. Librería compartida (C → ASM → Python)
+
+## Compilación manual
+
+```bash
+as --64 -g -o build/procesar.o codigo/procesar.s
+gcc -g -O0 -fPIC -c codigo/procesar_wrapper.c -o build/wrapper.o
+gcc -shared -o build/libprocesar.so build/procesar.o build/wrapper.o
+```
+
+---
+
+# 6. Ejecución Python + C + ASM
+
+El script Python debe cargar la librería desde `build/`.
+
+Ejecutar:
+
+```bash
+python codigo/gini_ctypes.py
+```
+
+---
+
+# 7. Uso con Makefile
+
+Alternativa recomendada:
+
+```bash
+make run-c
+make run-asm
+make run-py
+```
+
+---
+
+# 8. Debug con GDB
+
+```bash
+gdb ./build/programa
+gdb ./build/programa_asm
+```
+
+---
+
+# 9. Notas importantes
+
+* No versionar archivos compilados:
+
+  * `.o`
+  * `.so`
+  * binarios
+* La carpeta `build/` está en `.gitignore`
+* La librería `libprocesar.so` debe generarse localmente
+* Si la librería no existe, Python fallará al cargarla
+* El código ASM debe respetar la convención **System V AMD64 ABI**
