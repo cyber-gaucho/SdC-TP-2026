@@ -118,7 +118,7 @@ El objetivo fue comprender cómo se implementan operaciones simples a bajo nivel
 
 Se utilizó la convención System V AMD64 ABI, donde:
 
-El argumento `float` se recibe en el registro `%xmm0`
+El argumento `float` se recibe en el registro `%xmm0`  
 El valor de retorno (`int`) se devuelve en `%eax`
 
 ### Código relevante
@@ -132,9 +132,9 @@ ret
 
 ### Instrucciones usadas
 
-[cvttss2si](https://www.felixcloutier.com/x86/cvttss2si): convierte un float a entero truncando hacia cero
-[addl](https://www.felixcloutier.com/x86/add): suma un valor inmediato al registro
-[ret](https://www.felixcloutier.com/x86/ret): retorna al programa llamador
+[cvttss2si](https://www.felixcloutier.com/x86/cvttss2si): convierte un float a entero truncando hacia cero  
+[addl](https://www.felixcloutier.com/x86/add): suma un valor inmediato al registro  
+[ret](https://www.felixcloutier.com/x86/ret): retorna al programa llamador  
 
 ### Ejecución en ASM
 
