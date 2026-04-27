@@ -105,7 +105,7 @@ Finalmente, probamos la imagen en QEMU. El resultado muestra nuestra "vaca" salu
 
 Para comprobar que nuestra imagen es un sector de arranque válido más allá del emulador, grabamos el archivo `main.img` en un pendrive físico utilizando el comando `dd`.
 
-![Ejecución en Hardware Real](assets/foto_pendrive.jpg)
+![Ejecución en Hardware Real](assets/foto_pendrive.jpeg)
 
 ---
 
