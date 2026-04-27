@@ -10,4 +10,12 @@ loop:
 halt:
     hlt
 msg:
-    .asciz "hello world"
+    .ascii " _______________\r\n"
+    .ascii "/ Hello world!  \\\r\n"
+    .ascii "\\ mate --refill /\r\n"
+    .ascii " ---------------\r\n"
+    .ascii "        \\   ^__^\r\n"
+    .ascii "         \\  (oo)\\_______\r\n"
+    .ascii "            (__)\\       )\\/\\\r\n"
+    .ascii "                ||----w |\r\n"
+    .asciz "                ||     ||\r\n"
