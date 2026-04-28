@@ -125,7 +125,7 @@ A continuación, destacamos el fragmento exacto donde nuestro texto se muestra c
 ![Desensamblado de datos ASCII](assets/captura_objdump_nombre.png)
 
 Si analizamos los códigos hexadecimales de estas instrucciones, podemos leer nuestro mensaje. Por ejemplo:
-  * En la dirección `19 y 24:`, los bytes `48 65 6c 6c 6f` corresponden a **"Hello"**, interpretados como `gs insb`.
+  * En la dirección `19:` y `24:`, los bytes `48 65 6c 6c 6f` corresponden a **"Hello"**, interpretados como `gs insb`.
   * En la dirección `35:`, los bytes `6d 61 74 65` corresponden a **"mate"**, interpretados como un `and`.
   * En la dirección `3a:`, los bytes `2d 2d 72 65 66...` forman nuestro nombre de grupo **"--refill"**, siendo leídos como otro `and` e `imul`.
 
@@ -154,3 +154,90 @@ Para comprobar que nuestra imagen es un sector de arranque válido más allá de
 ---
 
 ## Desafío Modo Protegido
+
+Al encenderse, los procesadores x86 arrancan en modo real, un modo heredado del 8086 que limita el acceso a 1 MB de memoria y opera con instrucciones de 16 bits sin ningún tipo de protección entre procesos.
+El modo protegido permite al procesador acceder a memoria de 32 bits (hasta 4 GB), utilizar segmentación mediante la GDT (Global Descriptor Table) y aplicar niveles de privilegio (rings 0–3) que protegen al kernel del código de usuario.
+Para activarlo se debe: deshabilitar interrupciones (cli), cargar la GDT con lgdt, setear el bit PE del registro CR0, y finalmente realizar un salto lejano (far jump) para que el procesador recargue el registro CS con el nuevo selector de código.
+
+### Selectores de segmento
+
+En modo protegido, los registros de segmento (CS, DS, SS, etc.) no contienen direcciones físicas, sino selectores que indexan entradas dentro de la GDT. Cada selector de 16 bits codifica el índice del descriptor, el bit TI (0 = GDT, 1 = LDT) y el nivel de privilegio solicitado (RPL).
+
+El selector `0x08` corresponde al segmento de código (índice 1 en la GDT):
+
+```
+0x08 = 00000000 00001 0 00
+         [índice=1] [TI=0] [RPL=0]
+```
+
+El selector `0x10` corresponde al segmento de datos (índice 2 en la GDT):
+
+```
+0x10 = 00000000 00010 0 00
+         [índice=2] [TI=0] [RPL=0]
+```
+
+Por esta razón, al ingresar a modo protegido:
+    • CS se carga con `0x08` mediante el salto lejano (`ljmp $0x08, $protected_modec)
+    • DS, ES, SS, FS y GS se cargan explícitamente con `0x10`
+
+Esto permite separar el espacio de código del de datos, cumpliendo el modelo de segmentación del modo protegido y sentando la base para la protección de memoria entre distintos segmentos.
+
+### Resultados del Debugging
+
+#### Verificación del registro `CR0`
+
+Al detenernos en el breakpoint de la función protected_mode, se inspeccionó el registro `CR0` con el comando `p/x $cr0`. El valor obtenido fue `0x11`, lo que confirma que el bit PE (bit 0) está en 1: el procesador ya se encuentra operando en modo protegido. El bit 4 (ET) también aparece seteado, lo cual es normal en procesadores modernos.
+
+![CR0 = 0x11 — bit PE activo, modo protegido habilitado correctamente](assets/captura_gdb1.png)
+
+#### Inicialización de registros de segmento
+
+Ejecutando instrucción por instrucción se verificó que todos los registros de segmento (DS, ES, SS, FS, GS) fueron cargados con el selector `0x10`, que corresponde al descriptor de datos de la GDT. El comando info registers `ds ss` confirmó el valor `0x10` con base 16, lo que valida que el descriptor de datos está correctamente definido y el procesador lo acepta.
+
+![DS = 0x10, SS = 0x10 (valor 16) — selectores de datos cargados correctamente](assets/captura_gdb2.png)
+
+#### Diagnóstico del triple fault
+
+Durante el desarrollo se produjo un triple fault: al continuar desde `_start` y llegar a `protected_mode`, el procesador caía en la dirección inválida `0x0000e05b`. Al inspeccionar DS y SS en ese estado, ambos mostraban valor `0x0`, lo que indicaba que los registros de segmento nunca se cargaron. La causa fue una GDT mal alineada en memoria. Una vez corregida la alineación, el sistema transitó a modo protegido de forma estable.
+
+![Triple fault — DS=0x0, SS=0x0 indican GDT inválida; ejecución en dirección desconocida](assets/captura_gdb3.png)
+
+#### Ejecución en modo protegido y visualización en QEMU
+Una vez saneada la inicialización, se agregó un breakpoint adicional al comienzo del loop de impresión. Al inspeccionar los registros principales con info registers `eax` `ebx` `ecx` `edx` `esp` `eip` `cs` `ds` `ss`, se puede observar el estado completo del procesador ya en modo protegido de 32 bits:
+* `CR0 = 0x11`: bit ET y bit PE activos, modo protegido confirmado
+* `CS = 0x8`: selector del segmento de código (índice 1 en la GDT)
+* `EAX = 0x10`: valor del selector de datos recién cargado
+* `EIP = 0x7c1f <protected_mode+4>`: ejecución dentro de la función `protected_mode`
+* `ESP = 0x6f08`: puntero de pila inicializado correctamente
+* `DS = 0x0, SS = 0x0`: registros aún no actualizados en este punto de la ejecución
+
+El breakpoint del modo protegido detiene la ejecución justo antes del loop de impresión. Al continuar con el comando `c`, el procesador pasa por la etapa de impresión del mensaje y el resultado se visualiza en la ventana de QEMU, confirmando que el código de 32 bits se ejecuta correctamente.
+
+![Registros en modo protegido — CS=0x8, EIP apunta a protected_mode+4; mensaje visible en QEMU al continuar](assets/captura_gdb4.png)
+
+### Experimento: Violación de Memoria
+
+Con el objetivo de observar el comportamiento del procesador ante un acceso inválido, se modificó deliberadamente la GDT para provocar una falla de protección controlada.
+
+#### Procedimiento
+
+Se modificó el descriptor de datos en la GDT cambiando su Access Byte de `0x92` (lectura/escritura) a `0x90` (solo lectura). Luego se intentó ejecutar la siguiente instrucción de escritura en memoria:
+
+```as
+movl $0x12345678, (%edi)   ; escritura en segmento marcado como solo lectura
+```
+
+#### Resultado
+
+Dado que el segmento de datos estaba configurado como solo lectura, la CPU detectó una violación de protección y generó una cadena de fallas que no pudo ser manejada:
+
+* General Protection Fault (#GP) — la CPU detecta el acceso inválido al segmento
+* Double Fault — no existe IDT configurada para manejar el #GP
+* Triple Fault — el intento de manejar el Double Fault también falla; el procesador se reinicia
+
+El resultado fue la pérdida de ejecución observada en GDB, evidenciada por direcciones inválidas o desconexión del target. Este experimento demuestra en la práctica cómo el modelo de segmentación del modo protegido actúa como mecanismo de protección de memoria, y por qué la IDT es un componente crítico en cualquier sistema que opere en modo protegido.
+
+### Conclusión
+Se logró implementar exitosamente la transición de modo real a modo protegido en x86. Los resultados de debugging confirman: `CR0` con `PE` activo (`0x11`), registros de segmento cargados con el selector correcto (`0x10`) y la correcta definición de la GDT con sus descriptores de código (selector `0x08`) y datos (selector `0x10`).  
+La ejecución en modo protegido fue validada tanto a nivel de registros en GDB como visualmente en la ventana de QEMU, donde se pudo observar el mensaje impreso por el código de 32 bits. El experimento de violación de memoria evidenció el funcionamiento real de la protección por segmentos y la necesidad de una IDT para manejar excepciones en modo protegido.
