@@ -1,6 +1,8 @@
 # binarios generales
 *.out
 *.exe
+*.bin
+*.o
 
 # archivos temporales
 *.log
