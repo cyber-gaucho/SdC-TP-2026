@@ -14,7 +14,7 @@
 
 ## Desafío UEFI
 
-### **UEFI**
+### UEFI
 
 UEFI es la especificación que define la interfaz entre el firmware del hardware y el sistema operativo. Es lo primero que se ejecuta al encender la PC, antes que cualquier SO, y reemplaza al viejo BIOS que se usó durante décadas.
 
@@ -24,7 +24,7 @@ El proceso de arranque está dividido en fases. SEC usa el cache de la CPU como 
 
 UEFI expone dos grupos de servicios: los Boot Services, que solo existen antes de que el SO tome el control, y los Runtime Services, que persisten después. El más usado es GetVariable/SetVariable, que permite leer y escribir variables persistentes en la NVRAM como el orden de arranque o el estado de Secure Boot.
 
-### **Vulnerabilidades UEFI**
+### Vulnerabilidades UEFI
 
 El firmware UEFI es un objetivo muy valioso para atacantes porque se ejecuta antes del sistema operativo, es invisible para los antivirus, y sobrevive a formateos y reinstalaciones completas.
 
@@ -38,7 +38,7 @@ El firmware UEFI es un objetivo muy valioso para atacantes porque se ejecuta ant
 
 **LogoFAIL (2023)** explotó vulnerabilidades en los parsers de imágenes que UEFI usa para mostrar logos de marca al arrancar. Un atacante podía colocar una imagen maliciosa en la EFI System Partition y lograr ejecución de código antes de que Secure Boot actuara, ya que esa verificación ocurre fuera de su alcance.
 
-### **Intel CSME y MEBx**
+### Intel CSME y MEBx
 
 El CSME es un microprocesador independiente integrado en el chipset de los sistemas Intel. No tiene nada que ver con el procesador principal: tiene su propia CPU, su propia RAM, su propio sistema operativo embebido y opera incluso cuando el equipo está apagado, siempre que haya tensión de standby. Tiene acceso directo a la red, a la memoria del sistema y al almacenamiento.
 
@@ -48,7 +48,7 @@ En cuanto a vulnerabilidades: CVE-2017-5689 permitía autenticarse en la interfa
 
 El MEBx es la interfaz de configuración del CSME, accesible antes del arranque con Ctrl+P. Permite habilitar o deshabilitar AMT, cambiar su contraseña (que por defecto es "admin"), configurar su red independiente y habilitar acceso KVM remoto. En 2017, F-Secure demostró que con acceso físico de menos de 30 segundos y la contraseña por defecto, se puede establecer una backdoor de acceso remoto permanente que sobrevive a cualquier reinstalación del SO y es invisible para el sistema operativo.
 
-### **Coreboot**
+### Coreboot
 
 Coreboot es un proyecto de firmware open source bajo licencia GPLv2 cuyo objetivo es reemplazar el firmware propietario con el mínimo de código necesario para inicializar el hardware, y luego pasar el control a un payload modular (GRUB, SeaBIOS, TianoCore, Linux, etc.).
 
