@@ -19,6 +19,8 @@ Se utilizó QEMU junto con OVMF para simular un entorno UEFI:
 
 Comando: `map`
 
+![alt text](img/map.png)
+
 Se observó la presencia de dispositivos de tipo BLK, sin sistemas de archivos montados (FS), lo que evidencia que UEFI no asume automáticamente la existencia de particiones accesibles.
 
 ---
@@ -27,6 +29,8 @@ Se observó la presencia de dispositivos de tipo BLK, sin sistemas de archivos m
 
 Comando: `dh -b`
 
+![alt text](<img/dh -b.png>)
+
 Se verificó que UEFI utiliza un modelo basado en handles y protocolos para representar dispositivos y servicios, en lugar de direcciones de hardware fijas.
 
 ---
@@ -34,6 +38,8 @@ Se verificó que UEFI utiliza un modelo basado en handles y protocolos para repr
 ### 3.3 Variables NVRAM
 
 Comando: `dmpstore`
+
+![alt text](img/dmpstore.png)
 
 Se analizaron variables como `BootOrder` y `Boot####`, observando que el orden de arranque se define mediante un arreglo de identificadores almacenado en formato binario.
 
@@ -50,6 +56,8 @@ Interpretación:
 
 Comando: `memmap -b`
 
+![alt text](<img/memmap -b.png>)
+
 Se identificaron regiones como `RuntimeServices`, las cuales permanecen activas incluso después de que el sistema operativo toma control.
 
 ---
@@ -57,6 +65,8 @@ Se identificaron regiones como `RuntimeServices`, las cuales permanecen activas 
 ### 3.5 Drivers
 
 Comando: `drivers -b` 
+
+![alt text](<img/drivers -b.png>)
 
 Se observó que el firmware UEFI está compuesto por múltiples módulos (drivers), evidenciando una arquitectura modular.
 
