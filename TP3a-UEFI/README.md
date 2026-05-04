@@ -37,9 +37,9 @@ Se verificó que UEFI utiliza un modelo basado en handles y protocolos para repr
 
 ### 3.3 Variables NVRAM
 
-Comando: `dmpstore`
+Comando: `dmpstore -b`
 
-![alt text](img/dmpstore.png)
+![alt text](<img/dmpstore -b.png>)
 
 Se analizaron variables como `BootOrder` y `Boot####`, observando que el orden de arranque se define mediante un arreglo de identificadores almacenado en formato binario.
 
