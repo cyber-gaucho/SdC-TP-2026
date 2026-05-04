@@ -77,6 +77,8 @@ Comando: `memmap -b`
 
 ![Mapa de memoria UEFI, incluyendo regiones RuntimeServices](<assets/memmap -b.png>)
 
+![Salida de `memmap -b`, mostrando la distribución de memoria UEFI con sus distintas regiones y el espacio ocupado por cada tipo](<assets/memmap -b_1.png>)
+
 Se identificaron regiones como `RuntimeServices`, las cuales permanecen activas incluso después de que el sistema operativo toma control.
 
 ---
@@ -90,8 +92,6 @@ Comando: `drivers -b`
 Se observó que el firmware UEFI está compuesto por múltiples módulos (drivers), evidenciando una arquitectura modular.
 
 ---
-
-### 4. Respuestas
 
 **Pregunta de Razonamiento 1:**
 
@@ -114,13 +114,6 @@ El Boot Manager determina la secuencia de arranque utilizando la variable `BootO
 *En el mapa de memoria (`memmap`), existen regiones marcadas como `RuntimeServicesCode`. ¿Por qué estas áreas son un objetivo principal para los desarrolladores de malware (Bootkits)?*
 
 Las regiones `RuntimeServices` permanecen accesibles después del arranque del sistema operativo, lo que las convierte en un objetivo crítico para ataques como bootkits. Estas permiten mantener código con altos privilegios y dificultan su detección desde el sistema operativo.
-
----
-
-### 5. Conclusión
-
-UEFI introduce un modelo más moderno y modular que BIOS, basado en abstracciones y protocolos. Esto mejora la portabilidad y la seguridad, pero también introduce nuevos vectores de ataque a nivel firmware.
-
 
 ---
 
