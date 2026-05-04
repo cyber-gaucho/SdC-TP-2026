@@ -19,6 +19,82 @@
 
 ## TP 1: Exploración del entorno UEFI y la Shell
 
+En este trabajo se exploró el entorno UEFI utilizando QEMU con firmware OVMF. Se analizaron dispositivos, memoria, variables NVRAM y la arquitectura basada en handles y protocolos.
+
+Se utilizó QEMU junto con OVMF para simular un entorno UEFI:   
+`qemu-system-x86_64 -m 512 -bios /usr/share/ovmf/OVMF.fd -net none`
+
+### Exploración del sistema
+
+#### Dispositivos
+
+Comando: `map`
+
+![Salida del comando `map`, mostrando dispositivos BLK y FS detectados por UEFI](assets/map.png)
+
+Se observó la presencia de dispositivos de tipo BLK, sin sistemas de archivos montados (FS), lo que evidencia que UEFI no asume automáticamente la existencia de particiones accesibles.
+
+#### Handles y Protocolos
+
+Comando: `dh -b`
+
+![Salida de `dh -b`, donde se observan handles y protocolos asociados a cada dispositivo](<assets/dh -b.png>)
+
+Se verificó que UEFI utiliza un modelo basado en handles y protocolos para representar dispositivos y servicios, en lugar de direcciones de hardware fijas.
+
+#### Variables NVRAM
+
+Comando: `dmpstore -b`
+
+![Salida de `dmpstore -b`, mostrando variables como BootOrder y Boot####](<assets/dmpstore -b.png>)
+
+Se analizaron variables como `BootOrder` y `Boot####`, observando que el orden de arranque se define mediante un arreglo de identificadores almacenado en formato binario.
+
+Ejemplo observado: `00 00 01 00`
+
+Interpretación:
+
+- Boot0000
+- Boot0001
+
+#### Memoria
+
+Comando: `memmap -b`
+
+![Mapa de memoria UEFI, incluyendo regiones RuntimeServices](<assets/memmap -b.png>)
+
+![Salida de `memmap -b`, mostrando la distribución de memoria UEFI con sus distintas regiones y el espacio ocupado por cada tipo](<assets/memmap -b_1.png>)
+
+Se identificaron regiones como `RuntimeServices`, las cuales permanecen activas incluso después de que el sistema operativo toma control.
+
+#### Drivers
+
+Comando: `drivers -b` 
+
+![Listado de drivers cargados en el firmware UEFI](<assets/drivers -b.png>)
+
+Se observó que el firmware UEFI está compuesto por múltiples módulos (drivers), evidenciando una arquitectura modular.
+
+---
+
+**Pregunta de Razonamiento 1:**
+
+*Pregunta de Razonamiento 1: Al ejecutar el comando map y dh, vemos protocolos e identificadores en lugar de puertos de hardware fijos. ¿Cuál es la ventaja de seguridad y compatibilidad de este modelo frente al antiguo BIOS?*
+
+  > El modelo de UEFI basado en handles y protocolos permite abstraer el hardware físico mediante interfaces estandarizadas. Esto reduce la dependencia del hardware, mejora la portabilidad y aumenta la seguridad al evitar accesos directos a recursos críticos.
+
+**Pregunta de Razonamiento 2:**
+
+*Observando las variables `Boot####` y `BootOrder`, ¿cómo determina el Boot Manager la secuencia de arranque?*
+
+  > El Boot Manager determina la secuencia de arranque utilizando la variable `BootOrder`, que contiene una lista ordenada de identificadores. Cada uno corresponde a una variable `Boot####`, que incluye un Device Path hacia el ejecutable `.efi`. El firmware recorre esta lista hasta encontrar una opción válida.
+
+**Pregunta de Razonamiento 3:**
+
+*En el mapa de memoria (`memmap`), existen regiones marcadas como `RuntimeServicesCode`. ¿Por qué estas áreas son un objetivo principal para los desarrolladores de malware (Bootkits)?*
+
+  > Las regiones `RuntimeServices` permanecen accesibles después del arranque del sistema operativo, lo que las convierte en un objetivo crítico para ataques como bootkits. Estas permiten mantener código con altos privilegios y dificultan su detección desde el sistema operativo.
+
 ---
 
 ## TP 2: Desarrollo, Compilación y Análisis de Seguridad
