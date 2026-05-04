@@ -48,7 +48,7 @@ Comando: `dmpstore -b`
 
 ![Salida de `dmpstore -b`, mostrando variables como BootOrder y Boot####](<assets/dmpstore -b.png>)
 
-Se alizaron variables como `BootOrder` y `Boot####`, observando que el orden de arranque se define mediante un arreglo de identificadores almacenado en formato binario.
+Se analizaron variables como `BootOrder` y `Boot####`, observando que el orden de arranque se define mediante un arreglo de identificadores almacenado en formato binario.
 
 Ejemplo observado: `00 00 01 00`
 
