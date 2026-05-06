@@ -1,9 +1,11 @@
 ![](./assets/1_1_Isologotipo%20FCEFyN%20y%20UNC-%20original_%20fondo-Con%20bajada.jpg "UNC y FCEFyN")
 
-# TRABAJO PRÁCTICO N° 3a  
+# TRABAJO PRÁCTICO N° 3a
+
 ## Interfaz de Firmware Extensible Unificada (UEFI)
 
 **Integrantes:**
+
 - García, Lautaro Misael
 - Gomez, Dolores
 - Renaudo Gaggioli, Valentino
@@ -15,7 +17,6 @@
 ## Introducción
 
 ---
-
 
 ## TP 1: Exploración del entorno UEFI y la Shell
 
@@ -81,37 +82,40 @@ Se observó que el firmware UEFI está compuesto por múltiples módulos (driver
 
 *Pregunta de Razonamiento 1: Al ejecutar el comando map y dh, vemos protocolos e identificadores en lugar de puertos de hardware fijos. ¿Cuál es la ventaja de seguridad y compatibilidad de este modelo frente al antiguo BIOS?*
 
-  > El modelo de UEFI basado en handles y protocolos actúa como un "middleware" que abstrae por completo el hardware físico. En el BIOS Legacy, el código dependía de interrupciones rígidas y accesos a puertos de I/O específicos (hardcodeados), lo que generaba conflictos y ataba el software a una arquitectura específica. Con UEFI, se interactúa a través de interfaces estandarizadas y orientadas a objetos. Esto no solo garantiza la portabilidad entre distintas plataformas (x86, ARM), sino que a nivel de seguridad es vital: obliga a cualquier driver o aplicación a pasar por APIs controladas y validadas por el firmware, evitando accesos directos y arbitrarios a recursos críticos del hardware.
+> El modelo de UEFI basado en handles y protocolos actúa como un "middleware" que abstrae por completo el hardware físico. En el BIOS Legacy, el código dependía de interrupciones rígidas y accesos a puertos de I/O específicos (hardcodeados), lo que generaba conflictos y ataba el software a una arquitectura específica. Con UEFI, se interactúa a través de interfaces estandarizadas y orientadas a objetos. Esto no solo garantiza la portabilidad entre distintas plataformas (x86, ARM), sino que a nivel de seguridad es vital: obliga a cualquier driver o aplicación a pasar por APIs controladas y validadas por el firmware, evitando accesos directos y arbitrarios a recursos críticos del hardware.
 
 **Pregunta de Razonamiento 2:**
 
 *Observando las variables `Boot####` y `BootOrder`, ¿cómo determina el Boot Manager la secuencia de arranque?*
 
-  > El Boot Manager determina la secuencia de arranque utilizando la variable `BootOrder`, que contiene una lista ordenada de identificadores. Cada uno corresponde a una variable `Boot####`, que incluye un Device Path hacia el ejecutable `.efi`. El firmware recorre esta lista secuencialmente; si una opción falla o el dispositivo no está presente, pasa automáticamente al siguiente identificador hasta lograr transferir el control, eliminando la vieja e insegura práctica del BIOS de ejecutar a ciegas el primer sector (MBR) del disco.
+> El Boot Manager determina la secuencia de arranque utilizando la variable `BootOrder`, que contiene una lista ordenada de identificadores. Cada uno corresponde a una variable `Boot####`, que incluye un Device Path hacia el ejecutable `.efi`. El firmware recorre esta lista secuencialmente; si una opción falla o el dispositivo no está presente, pasa automáticamente al siguiente identificador hasta lograr transferir el control, eliminando la vieja e insegura práctica del BIOS de ejecutar a ciegas el primer sector (MBR) del disco.
 
 **Pregunta de Razonamiento 3:**
 
 *En el mapa de memoria (`memmap`), existen regiones marcadas como `RuntimeServicesCode`. ¿Por qué estas áreas son un objetivo principal para los desarrolladores de malware (Bootkits)?*
 
-  > Las regiones `RuntimeServices` permanecen accesibles después del arranque del sistema operativo, lo que las convierte en un objetivo crítico para ataques como bootkits. Estas permiten mantener código con altos privilegios y dificultan su detección desde el sistema operativo.
+> Las regiones `RuntimeServices` permanecen accesibles después del arranque del sistema operativo, lo que las convierte en un objetivo crítico para ataques como bootkits. Estas permiten mantener código con altos privilegios y dificultan su detección desde el sistema operativo.
 
 ---
 
 ## TP 2: Desarrollo, Compilación y Análisis de Seguridad
 
 ### Desarrollo de la Aplicación UEFI
+
 Se desarrolló una aplicación nativa en C (`aplicacion.c`) que utiliza la tabla de sistema para imprimir en consola y contiene un breakpoint estático (`INT3`).
 
 **Pregunta de Razonamiento 4:**
 
 *¿Por qué utilizamos `SystemTable->ConOut->OutputString` en lugar de la función `printf` de C?*
 
-  > Se debe a que estamos desarrollando para un entorno de pre-arranque o freestanding (compilado con la bandera `-ffreestanding`). La función `printf` pertenece a la biblioteca estándar de C (`libc`), la cual asume y requiere que haya un Sistema Operativo ejecutándose por debajo para proveer llamadas al sistema que envíen los caracteres a la pantalla.
-  >
-  > Al ejecutar una aplicación UEFI, el Sistema Operativo aún no existe en memoria. Por lo tanto, no contamos con `libc`. Para imprimir en pantalla, debemos interactuar directamente con la API que nos provee el firmware a través de la Tabla de Sistema (`SystemTable`), utilizando el protocolo de salida de texto simple (`ConOut`) para enviar cadenas de caracteres Unicode (`L"..."`) nativas del entorno UEFI.
+> Se debe a que estamos desarrollando para un entorno de pre-arranque o freestanding (compilado con la bandera `-ffreestanding`). La función `printf` pertenece a la biblioteca estándar de C (`libc`), la cual asume y requiere que haya un Sistema Operativo ejecutándose por debajo para proveer llamadas al sistema que envíen los caracteres a la pantalla.
+> 
+> Al ejecutar una aplicación UEFI, el Sistema Operativo aún no existe en memoria. Por lo tanto, no contamos con `libc`. Para imprimir en pantalla, debemos interactuar directamente con la API que nos provee el firmware a través de la Tabla de Sistema (`SystemTable`), utilizando el protocolo de salida de texto simple (`ConOut`) para enviar cadenas de caracteres Unicode (`L"..."`) nativas del entorno UEFI.
 
 ### Proceso de Compilación y Automatización
+
 Para la generación del binario `.efi`, se utilizó un script de automatización `build.sh` que realiza los siguientes pasos:
+
 1. Compilación a código objeto con `gcc` (flags: `-fpic`, `-ffreestanding`, etc.).
 2. Enlace con `ld` utilizando el script de linker de EFI.
 3. Conversión de formato con `objcopy` a `efi-app-x86_64`.
@@ -122,16 +126,17 @@ Para la generación del binario `.efi`, se utilizó un script de automatización
 
 Se importó el binario `aplicacion.efi` en Ghidra para analizar la lógica de seguridad y el comportamiento de los opcodes.
 
-**Captura de pantalla:**  
+**Captura de pantalla:**
+
 ![Función efi_main en Ghidra](./assets/captura_ghidra_int3.png)
 
 **Pregunta de Razonamiento 5:**
 
 *En el pseudocódigo de Ghidra, la condición `0xCC` suele aparecer como `-52`. ¿A qué se debe este fenómeno y por qué importa en ciberseguridad?*
 
-  > **El fenómeno -52:** Se debe a un problema de interpretación de signos. El valor hexadecimal `0xCC` en binario es `1100 1100`. El motor de decompilación de Ghidra asume que las variables de 1 byte son del tipo con signo (`signed char`), lee el bit más significativo como el bit de signo negativo. Al aplicar la regla del complemento a dos para 8 bits, el valor lógico de `1100 1100` resulta en el número decimal `-52`.
-  > 
-  > **Importancia en Ciberseguridad:** El valor `0xCC` corresponde a la instrucción `INT3`, que se utiliza para establecer software breakpoints reemplazando el código en la dirección objetivo y generando la excepción `EXCEPTION_BREAKPOINT`. El malware escanea activamente la memoria en busca del byte `0xCC` para detectar si el código está siendo analizado por un depurador, permitiéndole evadir el análisis (técnicas anti-debugging).
+> **El fenómeno -52:** Se debe a un problema de interpretación de signos. El valor hexadecimal `0xCC` en binario es `1100 1100`. El motor de decompilación de Ghidra asume que las variables de 1 byte son del tipo con signo (`signed char`), lee el bit más significativo como el bit de signo negativo. Al aplicar la regla del complemento a dos para 8 bits, el valor lógico de `1100 1100` resulta en el número decimal `-52`.
+> 
+> **Importancia en Ciberseguridad:** El valor `0xCC` corresponde a la instrucción `INT3`, que se utiliza para establecer software breakpoints reemplazando el código en la dirección objetivo y generando la excepción `EXCEPTION_BREAKPOINT`. El malware escanea activamente la memoria en busca del byte `0xCC` para detectar si el código está siendo analizado por un depurador, permitiéndole evadir el análisis (técnicas anti-debugging).
 
 **Nota:** Para lograr que el descompilador mostrara el chequeo, fue necesario declarar la variable como volatile en el scope global, forzando a las herramientas a leer la memoria asumiendo que un agente externo o hardware podría haberla modificado.
 
@@ -152,6 +157,7 @@ EFI_STATUS efi_main(...) { ... }
 Esta sección documenta el procedimiento para preparar el medio de arranque, validarlo en un entorno virtual y ejecutarlo en hardware físico. Además, se detalla una refactorización crítica del código debida a incompatibilidades a nivel de arquitectura.
 
 ### Refactorización del Código y Análisis del Fallo de `OutputString`
+
 En la propuesta original de la cátedra, se sugería utilizar el protocolo nativo de UEFI para imprimir texto en pantalla mediante la siguiente instrucción:
 
 `SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Mensaje\r\n");`
@@ -160,6 +166,7 @@ Durante las pruebas, se comprobó que esta instrucción **provocaba un cuelgue t
 
 **Investigación del fallo (ABI Mismatch):**
 El problema no radica en un error de sintaxis, sino en una incompatibilidad a nivel de la Interfaz Binaria de Aplicación y la Convención de Llamadas:
+
 1. **El estándar UEFI** fue desarrollado con gran influencia de Microsoft, por lo que utiliza la **Microsoft x64 Calling Convention**. En este estándar, los primeros argumentos de una función se pasan a través de los registros `RCX` y `RDX` del procesador.
 2. **Nuestro entorno de compilación** utiliza `gcc` en Linux, el cual asume por defecto la convención **System V AMD64 ABI**. Aquí, los primeros argumentos se pasan en los registros `RDI` y `RSI`.
 
@@ -168,15 +175,19 @@ Al compilar nuestro código en Linux e intentar ejecutar la llamada directa a `O
 **Solución:** La función `Print` provista por la biblioteca (`efilib`) actúa como un *wrapper*. Internamente se encarga de reordenar los registros del procesador desde el formato System V al formato Microsoft de manera dinámica antes de llamar al firmware, logrando una ejecución estable y segura.
 
 ### Procedimiento de Preparación del Pendrive
+
 Para que el firmware UEFI reconozca un dispositivo extraíble, este debe contar obligatoriamente con una tabla de particiones válida y un sistema de archivos **FAT32**.
 
 **Paso a paso en Linux:**
+
 1. Mediante el comando `lsblk` se identificó el dispositivo USB (ej. `/dev/sda`) y se generó una nueva tabla de particiones con `fdisk`. Se creó una partición primaria asignándole el tipo `EFI (FAT-12/16/32)`.
 2. Se formateó la nueva partición (`/dev/sda1`) en FAT32:
+   
    ```bash
    sudo mkfs.fat -F32 /dev/sda1
    ```
 3. Se montó la partición y se recreó la estructura de directorios exigida por la especificación UEFI:
+   
    ```bash
    sudo mount /dev/sda1 /mnt
    sudo mkdir -p /mnt/EFI/BOOT
@@ -185,9 +196,11 @@ Para que el firmware UEFI reconozca un dispositivo extraíble, este debe contar 
 5. Se copió nuestro binario compilado (`aplicacion.efi`) directamente en la raíz del pendrive (`/mnt/`) para facilitar su ejecución desde la Shell. Finalmente, se desmontó la unidad de forma segura.
 
 ### Validación en Entorno Virtual (QEMU)
+
 Antes de someter el código al hardware físico, se validó la correcta configuración de la partición y el funcionamiento del binario utilizando QEMU con el firmware OVMF. 
 
 En lugar de crear una imagen de disco virtual, se mapeó el pendrive físico directamente a la máquina virtual utilizando el siguiente comando (requiere privilegios de superusuario para leer el dispositivo de bloques):
+
 ```bash
 sudo qemu-system-x86_64 -bios /usr/share/ovmf/OVMF.fd -drive file=/dev/sda,format=raw
 ```
@@ -195,10 +208,13 @@ sudo qemu-system-x86_64 -bios /usr/share/ovmf/OVMF.fd -drive file=/dev/sda,forma
 Esta prueba permitió comprobar que la UEFI Shell iniciaba automáticamente y que el comando `Print` mostraba los caracteres de forma correcta sin congelar el sistema.
 
 **Captura de validación en QEMU:**
+
 ![Validación en QEMU](./assets/captura_qemuuu.png)
 
 ### Ejecución en Hardware Físico
+
 Para la prueba final, se insertó el pendrive en una notebook física (Lenovo). 
+
 1. Se ingresó a la configuración del BIOS/UEFI para **desactivar la opción Secure Boot**. Este paso es necesario, ya que nuestros binarios (`BOOTX64.EFI` y `aplicacion.efi`) fueron compilados localmente y no poseen las firmas criptográficas validadas por el fabricante.
 2. Desde el menú de arranque, se seleccionó la unidad USB.
 3. Al iniciar la UEFI Shell, se identificó la unidad correspondiente al medio extraíble en la tabla de mapeo (en este caso, `FS1:`).
@@ -207,6 +223,7 @@ Para la prueba final, se insertó el pendrive en una notebook física (Lenovo).
 El programa se ejecutó correctamente en el nivel de firmware pre-OS, validando de forma empírica la condición estática de interrupción y enviando el mensaje por pantalla.
 
 **Captura de ejecución en hardware físico:**
+
 ![Ejecución en hardware físico](./assets/foto_lenovo.jpeg)
 
 ---
