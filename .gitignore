@@ -1,6 +1,8 @@
 # binarios generales
 *.out
 *.exe
+*.bin
+*.o
 
 # archivos temporales
 *.log
@@ -19,3 +21,12 @@ build/
 # Python
 venv/
 __pycache__/
+
+# Binarios UEFI (TP3a)
+*.o
+*.so
+*.efi
+
+# Proyectos de Ghidra
+*.gpr
+*.rep/
