@@ -342,3 +342,40 @@ GPIO27 -> gpio-539
 Estos pines fueron seleccionados por ser GPIO de propósito general que no interfieren con periféricos habitualmente utilizados por el sistema.
 
 La inspección del sistema también confirmó la disponibilidad de la interfaz GPIO exportada por el kernel Linux, lo que permitirá realizar pruebas preliminares de hardware antes de integrar el acceso a GPIO dentro del Character Device Driver.
+
+# Avance 07 - Preparación del entorno de compilación cruzada
+
+## Objetivo
+
+Preparar el entorno de desarrollo de la estación de trabajo para generar binarios destinados a la arquitectura ARM utilizada por la Raspberry Pi Zero W.
+
+## Actividades realizadas
+
+Mediante la [guía de instalación](https://learn.arm.com/install-guides/gcc/cross/) se instaló la cadena de herramientas de compilación cruzada para ARM de 32 bits:
+
+* `gcc-arm-linux-gnueabihf`
+* `binutils-arm-linux-gnueabihf`
+
+> Acerca de [`bintuils`](https://packages.debian.org/unstable/binutils-arm-linux-gnueabihf)
+
+Estas herramientas permiten generar ejecutables ARM desde un sistema anfitrión x86_64 sin necesidad de compilar directamente sobre la Raspberry Pi.
+
+## Validación prevista
+
+Como primera prueba se desarrolló una aplicación mínima denominada `hello_arm.c`.
+
+El programa será compilado utilizando el compilador cruzado y posteriormente transferido a la Raspberry Pi para verificar:
+
+1. La correcta generación de ejecutables ARM.
+2. La compatibilidad de los binarios generados con la plataforma objetivo.
+3. El flujo de trabajo requerido por la consigna para la compilación cruzada.
+
+## Relación con el trabajo práctico
+
+La compilación cruzada constituye uno de los requisitos explícitos de la consigna.
+
+La misma metodología será utilizada posteriormente para generar:
+
+* El módulo del kernel (`.ko`).
+* Las aplicaciones de usuario.
+* Las herramientas de prueba asociadas al Character Device Driver.
