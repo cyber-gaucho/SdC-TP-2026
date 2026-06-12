@@ -379,3 +379,227 @@ La misma metodología será utilizada posteriormente para generar:
 * El módulo del kernel (`.ko`).
 * Las aplicaciones de usuario.
 * Las herramientas de prueba asociadas al Character Device Driver.
+
+# Observación sobre compatibilidad de arquitectura
+
+Durante las pruebas iniciales de compilación cruzada se generó correctamente un ejecutable ARM utilizando la herramienta `arm-linux-gnueabihf-gcc`.
+
+La verificación mediante `file` confirmó la generación de un binario ARM de 32 bits.
+
+Sin embargo, al ejecutar el programa sobre la Raspberry Pi Zero W se produjo un error de segmentación (`Segmentation Fault`).
+
+> ver imagen [`09_compile_segfault_readelf.png`](./capturas/09_compile_segfault_readelf.png)
+
+Dado que la Raspberry Pi Zero W utiliza un [procesador ARMv6](https://developer.arm.com/documentation/ddi0301/h/introduction/about-the-processor), se inició una etapa adicional de validación para verificar la compatibilidad entre la arquitectura objetivo y las opciones de compilación utilizadas por la herramienta de compilación cruzada.
+
+Este análisis permitirá ajustar correctamente los parámetros de compilación antes de generar los módulos y aplicaciones definitivas del trabajo práctico.
+
+# Avance 08 - Validación de compilación cruzada para aplicaciones de usuario
+
+## Objetivo
+
+Validar el flujo de compilación cruzada requerido por la consigna mediante la construcción de una aplicación simple en lenguaje C desde el host Ubuntu para su posterior ejecución en la Raspberry Pi Zero W.
+
+## Herramientas utilizadas
+
+Se instaló el toolchain:
+
+```bash
+gcc-arm-linux-gnueabihf
+binutils-arm-linux-gnueabihf
+```
+
+Posteriormente se desarrolló un programa mínimo:
+
+```c
+#include <stdio.h>
+
+int main(void)
+{
+    printf("Hello, Arm World!\n");
+    return 0;
+}
+```
+
+## Resultados obtenidos
+
+La compilación se realizó exitosamente utilizando:
+
+```bash
+arm-linux-gnueabihf-gcc hello-world.c -o hello-world
+```
+
+La inspección mediante:
+
+```bash
+file hello-world
+```
+
+confirmó la generación de un ejecutable ARM de 32 bits.
+
+Sin embargo, al ejecutar el binario en la Raspberry Pi Zero W se produjo un error:
+
+```text
+Segmentation fault
+```
+
+El análisis posterior mediante:
+
+```bash
+readelf -A hello-world
+```
+
+reveló que el ejecutable continuaba siendo generado para arquitectura ARMv7 a pesar de los intentos de forzar ARMv6 mediante opciones de compilación.
+
+También se evaluó el uso del toolchain:
+
+```bash
+arm-linux-gnueabi-gcc
+```
+
+pero los binarios resultantes requerían un cargador dinámico inexistente en el sistema operativo instalado en la Raspberry Pi.
+
+## Verificación del entorno objetivo
+
+Se comprobó que la Raspberry Pi Zero W utiliza:
+
+```text
+armv6l
+ARMv6-compatible processor rev 7
+arm-linux-gnueabihf
+```
+
+Asimismo se verificó que la compilación nativa en la Raspberry funciona correctamente mediante:
+
+```bash
+gcc hello.c -o hello
+./hello
+```
+
+obteniéndose la salida esperada.
+
+## Conclusión
+
+Se logró validar:
+
+* La instalación y funcionamiento básico de la herramienta de compilación cruzada.
+* La transferencia de binarios mediante SSH/SCP.
+* La existencia de incompatibilidades entre la toolchain utilizada y la arquitectura ARMv6 de la Raspberry Pi Zero W.
+
+Dado que los módulos del kernel no dependen de la biblioteca estándar de C ni del cargador dinámico utilizado por las aplicaciones de usuario, se decidió continuar con la preparación de la compilación cruzada del Character Device Driver.
+
+# Avance 09 - Preparación del entorno de compilación cruzada para módulos
+
+## Objetivo
+
+Preparar en el host una copia local de los encabezados del kernel utilizados por la Raspberry Pi Zero W para permitir la compilación cruzada de módulos externos.
+
+## Verificaciones realizadas
+
+Se comprobó la versión exacta del kernel objetivo:
+
+```text
+6.12.75+rpt-rpi-v6
+```
+
+También se verificó la presencia de los enlaces simbólicos estándar:
+
+```text
+/lib/modules/6.12.75+rpt-rpi-v6/build
+/lib/modules/6.12.75+rpt-rpi-v6/source
+```
+
+apuntando a los paquetes de cabeceras instalados en el sistema.
+
+## Resultado
+
+Se exportaron los directorios:
+
+* `linux-headers-6.12.75+rpt-rpi-v6`
+* `linux-headers-6.12.75+rpt-common-rpi`
+
+para ser utilizados posteriormente desde el entorno de desarrollo Ubuntu.
+
+Esta información permitirá compilar módulos del kernel compatibles con la Raspberry Pi sin necesidad de realizar la compilación directamente sobre el dispositivo.
+
+### Dependencias adicionales del sistema de compilación del kernel
+
+Durante la preparación del entorno de compilación cruzada se observó que los paquetes de encabezados del kernel no son autocontenidos.
+
+Los directorios `scripts` y `tools` son enlaces simbólicos hacia archivos ubicados en:
+
+`/usr/lib/linux-kbuild-6.12.75+rpt`
+
+Por este motivo fue necesario exportar también dicho árbol de directorios desde la Raspberry Pi para reproducir correctamente el entorno de construcción en el host Ubuntu.
+
+### Ejecución de herramientas auxiliares del sistema de build
+
+Durante la compilación cruzada del módulo se observó que el sistema de construcción del kernel utiliza herramientas auxiliares ejecutadas en la máquina anfitriona.
+
+Una de ellas (`fixdep`) había sido exportada desde la Raspberry Pi junto con el árbol `linux-kbuild`, por lo que estaba compilada para arquitectura ARM.
+
+Al ejecutarse en el host Ubuntu (x86_64) produjo el error:
+
+```text
+Exec format error
+```
+
+Esto permitió identificar una diferencia importante entre:
+
+* Herramientas que deben ejecutarse en el host.
+
+* Binarios que deben generarse para la arquitectura destino.
+
+La resolución consiste en utilizar las herramientas de construcción nativas del host Ubuntu y reservar la compilación cruzada únicamente para los módulos del kernel.
+
+## Avance 10 - Validación del entorno de compilación cruzada
+
+### Objetivo
+
+Verificar la posibilidad de compilar módulos del kernel para la Raspberry Pi Zero W desde el host Ubuntu utilizando compilación cruzada.
+
+### Preparación del entorno
+
+Se instaló el compilador cruzado para arquitectura ARM (`arm-linux-gnueabihf-gcc`) y se exportaron desde la Raspberry Pi los encabezados del kernel y los archivos auxiliares utilizados por el sistema de construcción Kbuild.
+
+Con este entorno se intentó compilar un módulo de prueba (`hello.ko`) desde Ubuntu utilizando la misma versión de kernel instalada en la Raspberry Pi.
+
+### Análisis de errores durante la compilación
+
+La compilación avanzó correctamente hasta la etapa de generación del objeto del módulo:
+
+```text
+CC [M] hello.o
+```
+
+Sin embargo, el proceso se detuvo con errores del tipo:
+
+```text
+Exec format error
+```
+
+correspondientes a herramientas auxiliares de Kbuild tales como:
+
+```text
+fixdep
+modpost
+recordmcount
+```
+
+Para investigar el problema se analizaron los ejecutables involucrados utilizando la herramienta `file`.
+
+Se comprobó que dichas herramientas habían sido exportadas desde la Raspberry Pi y estaban compiladas para arquitectura ARM, mientras que el host de desarrollo utiliza arquitectura x86_64.
+
+Por este motivo el sistema de construcción intentaba ejecutar binarios ARM sobre Ubuntu, provocando los errores observados.
+
+### Conclusiones
+
+El análisis permitió comprobar que:
+
+* El compilador cruzado ARM se encontraba correctamente instalado.
+* Los encabezados del kernel exportados eran compatibles con la versión ejecutada por la Raspberry Pi.
+* El sistema Kbuild alcanzaba efectivamente la etapa de compilación del módulo.
+* Las fallas observadas no estaban relacionadas con el módulo desarrollado sino con herramientas auxiliares precompiladas para ARM que debían ejecutarse localmente en el host.
+
+A partir de este resultado se concluyó que la estrategia más robusta consiste en utilizar un árbol completo de fuentes del kernel Raspberry Pi en el host, permitiendo que Kbuild genere automáticamente las herramientas auxiliares para la arquitectura anfitriona mientras mantiene la compilación del módulo para ARM.
+

@@ -1,7 +1,20 @@
+ARCH := arm
+CROSS_COMPILE := arm-linux-gnueabihf-
+
+KDIR := ../../toolchain/kernel-export-v2/linux-headers-6.12.75+rpt-rpi-v6
+
 obj-m += hello.o
 
 all:
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
+	make -C $(KDIR) \
+		M=$(PWD) \
+		ARCH=$(ARCH) \
+		CROSS_COMPILE=$(CROSS_COMPILE) \
+		modules
 
 clean:
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
+	make -C $(KDIR) \
+		M=$(PWD) \
+		ARCH=$(ARCH) \
+		CROSS_COMPILE=$(CROSS_COMPILE) \
+		clean
