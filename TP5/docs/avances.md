@@ -552,7 +552,7 @@ Esto permitió identificar una diferencia importante entre:
 
 La resolución consiste en utilizar las herramientas de construcción nativas del host Ubuntu y reservar la compilación cruzada únicamente para los módulos del kernel.
 
-## Avance 10 - Validación del entorno de compilación cruzada
+# Avance 10 - Validación del entorno de compilación cruzada
 
 ### Objetivo
 
@@ -603,3 +603,39 @@ El análisis permitió comprobar que:
 
 A partir de este resultado se concluyó que la estrategia más robusta consiste en utilizar un árbol completo de fuentes del kernel Raspberry Pi en el host, permitiendo que Kbuild genere automáticamente las herramientas auxiliares para la arquitectura anfitriona mientras mantiene la compilación del módulo para ARM.
 
+# Avance 11 - Obtención del árbol completo del kernel Raspberry Pi
+
+### Objetivo
+
+Preparar un entorno de compilación cruzada completo utilizando las fuentes oficiales del kernel Raspberry Pi en lugar de depender exclusivamente de los encabezados exportados desde la placa.
+
+### Procedimiento
+
+Se descargó la rama correspondiente a la serie 6.12 del repositorio oficial del kernel Raspberry Pi:
+
+```bash
+git clone --depth=1 --branch rpi-6.12.y \
+https://github.com/raspberrypi/linux.git kernel-src
+```
+
+Posteriormente se generó la configuración base para Raspberry Pi Zero utilizando:
+
+```bash
+make ARCH=arm bcmrpi_defconfig
+```
+
+### Resultado
+
+Durante la configuración se observó la compilación automática de herramientas auxiliares del sistema Kbuild:
+
+```text
+HOSTCC scripts/basic/fixdep
+HOSTCC scripts/kconfig/conf.o
+HOSTLD scripts/kconfig/conf
+```
+
+Esto confirmó que dichas herramientas fueron construidas para la arquitectura anfitriona (x86_64), eliminando el problema detectado anteriormente al exportar directamente los paquetes de encabezados desde la Raspberry Pi.
+
+### Conclusión
+
+El árbol completo del kernel proporciona un entorno de compilación cruzada más adecuado que la simple exportación de encabezados, ya que genera automáticamente las herramientas auxiliares necesarias para el host mientras mantiene la capacidad de producir módulos destinados a la arquitectura ARM.
