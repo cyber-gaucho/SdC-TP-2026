@@ -6,7 +6,7 @@
 #include <linux/types.h>
 #include <linux/kdev_t.h>
 #include <linux/uaccess.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Grupo TP5");
@@ -15,15 +15,16 @@ MODULE_DESCRIPTION("Character Device Driver GPIO para TP5");
 #define DEVICE_NAME "tp5"
 #define CLASS_NAME  "tp5_class"
 
-#define GPIO_CH1 17
-#define GPIO_CH2 27
-
 static dev_t first;
 static struct cdev c_dev;
 static struct class *cl;
 
 /* Canal seleccionado */
 static char selected_channel = '1';
+
+/* GPIO descriptors */
+static struct gpio_desc *gpio17_desc;
+static struct gpio_desc *gpio27_desc;
 
 /* ============================================================
  * Operaciones del dispositivo
@@ -56,9 +57,15 @@ static ssize_t tp5_read(
         return 0;
 
     if (selected_channel == '1')
-        gpio_value = gpio_get_value(GPIO_CH1);
+        gpio_value = gpiod_get_value(gpio17_desc);
     else
-        gpio_value = gpio_get_value(GPIO_CH2);
+        gpio_value = gpiod_get_value(gpio27_desc);
+
+    if (gpio_value < 0)
+    {
+        printk(KERN_ERR "TP5: error leyendo GPIO (%d)\n", gpio_value);
+        return gpio_value;
+    }
 
     value = gpio_value ? '1' : '0';
 
@@ -87,9 +94,18 @@ static ssize_t tp5_write(
         return -EFAULT;
 
     if (cmd == '1' || cmd == '2')
+    {
         selected_channel = cmd;
+
+        printk(KERN_INFO,
+               "TP5: canal seleccionado -> GPIO%c\n",
+               cmd);
+    }
     else
+    {
+        printk(KERN_ERR "TP5: comando invalido '%c'\n", cmd);
         return -EINVAL;
+    }
 
     return len;
 }
@@ -115,18 +131,33 @@ static int __init tp5_init(void)
     int ret;
     struct device *dev_ret;
 
-    printk(KERN_INFO "TP5: registrando character device\n");
+    printk(KERN_INFO "TP5: paso 1 - alloc_chrdev_region\n");
 
     ret = alloc_chrdev_region(&first, 0, 1, DEVICE_NAME);
     if (ret < 0)
+    {
+        printk(KERN_ERR
+               "TP5: alloc_chrdev_region fallo (%d)\n",
+               ret);
         return ret;
+    }
+
+    printk(KERN_INFO "TP5: paso 2 - class_create\n");
 
     cl = class_create(CLASS_NAME);
     if (IS_ERR(cl))
     {
+        ret = PTR_ERR(cl);
+
+        printk(KERN_ERR
+               "TP5: class_create fallo (%d)\n",
+               ret);
+
         unregister_chrdev_region(first, 1);
-        return PTR_ERR(cl);
+        return ret;
     }
+
+    printk(KERN_INFO "TP5: paso 3 - device_create\n");
 
     dev_ret = device_create(
         cl,
@@ -137,71 +168,82 @@ static int __init tp5_init(void)
 
     if (IS_ERR(dev_ret))
     {
+        ret = PTR_ERR(dev_ret);
+
+        printk(KERN_ERR
+               "TP5: device_create fallo (%d)\n",
+               ret);
+
         class_destroy(cl);
         unregister_chrdev_region(first, 1);
-        return PTR_ERR(dev_ret);
+        return ret;
     }
 
+    printk(KERN_INFO "TP5: paso 4 - cdev_init\n");
+
     cdev_init(&c_dev, &tp5_fops);
+
+    printk(KERN_INFO "TP5: paso 5 - cdev_add\n");
 
     ret = cdev_add(&c_dev, first, 1);
     if (ret < 0)
     {
+        printk(KERN_ERR
+               "TP5: cdev_add fallo (%d)\n",
+               ret);
+
         device_destroy(cl, first);
         class_destroy(cl);
         unregister_chrdev_region(first, 1);
         return ret;
     }
 
-    ret = gpio_request(GPIO_CH1, "tp5_gpio17");
-    if (ret)
+    printk(KERN_INFO "TP5: paso 6 - gpio_to_desc(17)\n");
+
+    gpio17_desc = gpio_to_desc(17);
+
+    if (!gpio17_desc)
     {
+        printk(KERN_ERR
+               "TP5: gpio_to_desc(17) devolvio NULL\n");
+
         cdev_del(&c_dev);
         device_destroy(cl, first);
         class_destroy(cl);
         unregister_chrdev_region(first, 1);
-        return ret;
+
+        return -ENODEV;
     }
 
-    ret = gpio_request(GPIO_CH2, "tp5_gpio27");
-    if (ret)
+    printk(KERN_INFO "TP5: GPIO17 descriptor OK\n");
+
+    printk(KERN_INFO "TP5: paso 7 - gpio_to_desc(27)\n");
+
+    gpio27_desc = gpio_to_desc(27);
+
+    if (!gpio27_desc)
     {
-        gpio_free(GPIO_CH1);
+        printk(KERN_ERR
+               "TP5: gpio_to_desc(27) devolvio NULL\n");
+
         cdev_del(&c_dev);
         device_destroy(cl, first);
         class_destroy(cl);
         unregister_chrdev_region(first, 1);
-        return ret;
+
+        return -ENODEV;
     }
 
-    ret = gpio_direction_input(GPIO_CH1);
-    if (ret)
-    {
-        gpio_free(GPIO_CH1);
-        gpio_free(GPIO_CH2);
-        cdev_del(&c_dev);
-        device_destroy(cl, first);
-        class_destroy(cl);
-        unregister_chrdev_region(first, 1);
-        return ret;
-    }
+    printk(KERN_INFO "TP5: GPIO27 descriptor OK\n");
 
-    ret = gpio_direction_input(GPIO_CH2);
-    if (ret)
-    {
-        gpio_free(GPIO_CH1);
-        gpio_free(GPIO_CH2);
-        cdev_del(&c_dev);
-        device_destroy(cl, first);
-        class_destroy(cl);
-        unregister_chrdev_region(first, 1);
-        return ret;
-    }
+    printk(KERN_INFO
+           "TP5: escribir '1' selecciona GPIO17\n");
 
-    printk(KERN_INFO "TP5: GPIO17 y GPIO27 configurados como entrada\n");
-    printk(KERN_INFO "TP5: escribir '1' selecciona GPIO17\n");
-    printk(KERN_INFO "TP5: escribir '2' selecciona GPIO27\n");
-    printk(KERN_INFO "TP5: device creado correctamente\n");
+    printk(KERN_INFO
+           "TP5: escribir '2' selecciona GPIO27\n");
+
+    printk(KERN_INFO
+           "TP5: device creado correctamente\n");
 
     return 0;
 }
@@ -212,12 +254,12 @@ static int __init tp5_init(void)
 
 static void __exit tp5_exit(void)
 {
-    gpio_free(GPIO_CH1);
-    gpio_free(GPIO_CH2);
-
     cdev_del(&c_dev);
+
     device_destroy(cl, first);
+
     class_destroy(cl);
+
     unregister_chrdev_region(first, 1);
 
     printk(KERN_INFO "TP5: device eliminado\n");

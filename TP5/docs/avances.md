@@ -621,7 +621,7 @@ https://github.com/raspberrypi/linux.git kernel-src
 Posteriormente se generó la configuración base para Raspberry Pi Zero utilizando:
 
 ```bash
-make ARCH=arm bcmrpi_defconfig
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- olddefconfig
 ```
 
 ### Resultado
@@ -639,3 +639,151 @@ Esto confirmó que dichas herramientas fueron construidas para la arquitectura a
 ### Conclusión
 
 El árbol completo del kernel proporciona un entorno de compilación cruzada más adecuado que la simple exportación de encabezados, ya que genera automáticamente las herramientas auxiliares necesarias para el host mientras mantiene la capacidad de producir módulos destinados a la arquitectura ARM.
+
+# Avance 12 - Compilación cruzada exitosa del módulo GPIO
+
+### Objetivo
+
+Lograr la compilación cruzada de un módulo del kernel para Raspberry Pi Zero W utilizando un entorno de desarrollo x86_64.
+
+### Procedimiento
+
+Se utilizó un árbol de encabezados exportado desde la Raspberry Pi junto con las herramientas Kbuild necesarias para compilar módulos externos desde una PC Ubuntu.
+
+Durante el proceso se detectaron problemas de compatibilidad entre distintas versiones del kernel y diferencias entre la configuración utilizada para construir el kernel en la Raspberry Pi y la empleada localmente.
+
+Se verificó la correspondencia entre:
+
+* versión del kernel;
+* vermagic;
+* configuración del kernel;
+* encabezados exportados;
+* herramientas auxiliares de compilación.
+
+Tras varias iteraciones se obtuvo una compilación cruzada funcional del módulo `cdd_gpio`.
+
+### Resultado
+
+El módulo generado pudo cargarse correctamente sobre la Raspberry Pi Zero W ejecutando el kernel correspondiente.
+
+```bash
+sudo insmod cdd_gpio.ko
+```
+
+Los mensajes del kernel confirmaron la inicialización correcta del dispositivo de caracteres y la obtención de los descriptores GPIO.
+
+### Conclusión
+
+La compilación cruzada de módulos para Raspberry Pi requiere no sólo los encabezados del kernel sino también una correspondencia estricta entre la configuración, la versión del kernel y las herramientas Kbuild utilizadas durante el proceso.
+
+# Avance 13 - Implementación del driver GPIO
+
+### Objetivo
+
+Modificar el driver de prueba desarrollado previamente para que permitiera adquirir señales digitales reales desde los GPIO de la Raspberry Pi.
+
+### Procedimiento
+
+Se desarrolló el módulo `cdd_gpio`, basado en la infraestructura de dispositivos de caracteres implementada en avances anteriores.
+
+El driver:
+
+* registra dinámicamente un dispositivo de caracteres;
+* crea el nodo `/dev/tp5`;
+* permite seleccionar un canal mediante `write()`;
+* permite leer el estado lógico mediante `read()`.
+
+Se utilizaron los GPIO:
+
+| Canal   | GPIO   |
+| ------- | ------ |
+| Canal 1 | GPIO17 |
+| Canal 2 | GPIO27 |
+
+### Resultado
+
+La selección de canal pudo realizarse mediante:
+
+```bash
+echo -n "1" > /dev/tp5
+```
+
+o
+
+```bash
+echo -n "2" > /dev/tp5
+```
+
+y la lectura mediante:
+
+```bash
+cat /dev/tp5
+```
+
+obteniendo correctamente los niveles lógicos presentes en cada entrada.
+
+### Conclusión
+
+El módulo desarrollado permitió validar la interacción entre espacio kernel y hardware real, cumpliendo el objetivo principal del trabajo práctico.
+
+
+# Avance 14 - Aplicación de monitoreo y visualización web
+
+### Objetivo
+
+Desarrollar una aplicación de usuario capaz de visualizar las señales adquiridas por el driver en tiempo real.
+
+### Procedimiento
+
+Inicialmente se implementó una herramienta de consola para monitorear las señales y calcular:
+
+* frecuencia;
+* período;
+* duty cycle.
+
+Posteriormente se desarrolló una aplicación web utilizando Flask y JavaScript.
+
+La aplicación:
+
+* accede al dispositivo `/dev/tp5`;
+* selecciona el canal solicitado;
+* adquiere muestras periódicamente;
+* calcula frecuencia y duty cycle;
+* publica los datos mediante una interfaz web.
+
+### Arquitectura
+
+```text
+Raspberry Pico 2 WH
+        │
+        ▼
+GPIO17 / GPIO27
+        │
+        ▼
+cdd_gpio
+        │
+        ▼
+/dev/tp5
+        │
+        ▼
+Flask
+        │
+        ▼
+Interfaz Web
+```
+
+### Resultado
+
+Se obtuvo una interfaz web accesible desde la red local que permite:
+
+* seleccionar canales;
+* visualizar la forma de onda;
+* medir frecuencia;
+* medir duty cycle.
+
+Las pruebas se realizaron utilizando una Raspberry Pi Pico 2 WH como generador de señales digitales.
+
+### Conclusión
+
+La aplicación completa permitió integrar hardware, driver del kernel y software de usuario en una única plataforma de monitoreo accesible mediante navegador web.
+
