@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <meta charset="utf-8">
+
+    <title>TP5 Signal Monitor</title>
+
+    <link rel="stylesheet" href="/static/style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>TP5 Signal Monitor</h1>
+
+    <div class="controls">
+
+        <button onclick="selectChannel('1')">
+            Canal 1 (Amarillo)
+        </button>
+
+        <button onclick="selectChannel('2')">
+            Canal 2 (Naranja)
+        </button>
+
+    </div>
+
+    <div class="panel">
+
+        <div>
+            Canal:
+            <span id="channel">GPIO17</span>
+        </div>
+
+        <div>
+            Estado:
+            <span id="state">LOW</span>
+        </div>
+
+        <div>
+            Frecuencia:
+            <span id="freq">0.00</span> Hz
+        </div>
+
+        <div>
+            Duty:
+            <span id="duty">0.0</span> %
+        </div>
+
+    </div>
+
+    <canvas id="signalChart"></canvas>
+
+</div>
+
+<script src="/static/app.js"></script>
+
+</body>
+
+</html>
